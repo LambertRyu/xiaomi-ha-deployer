@@ -1,0 +1,21 @@
+{
+  "plugin": "homeassistant",
+  "name": "Home Assistant",
+  "id": 9901,
+  "version": "1.0.0",
+  "tags": [
+    "tool",
+    "homeassistant"
+  ],
+  "timestamp": 1789208871,
+  "desc": "打开局域网内运行的 Home Assistant",
+  "developer": "local",
+  "publisher": "local",
+  "changelog": "首次发布：静态入口",
+  "system": false,
+  "size": 10000,
+  "port": "8123",
+  "type": "standard",
+  "forceupgrade": false,
+  "ext": {}
+}

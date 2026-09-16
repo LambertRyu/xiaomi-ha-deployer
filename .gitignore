@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# PyInstaller
+*.spec
+build/
+build-*/
+dist/
+
+# Local generated files
+*.log
+*.tmp

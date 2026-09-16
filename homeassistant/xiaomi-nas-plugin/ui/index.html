@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home Assistant</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body {
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      margin: 0;
+      background: #101e24;
+      color: #e7f5fb;
+    }
+    main {
+      width: min(30rem, calc(100% - 3rem));
+      padding: 2rem;
+      text-align: center;
+      border: 1px solid #29434e;
+      border-radius: 1rem;
+      background: #172a33;
+      box-shadow: 0 1rem 3rem rgb(0 0 0 / 25%);
+    }
+    h1 { margin: 0 0 .75rem; font-size: 1.5rem; }
+    p { color: #b8ccd5; line-height: 1.6; }
+    .actions { display: flex; justify-content: center; gap: .75rem; margin-top: 1.5rem; }
+    button, a {
+      box-sizing: border-box;
+      padding: .7rem 1rem;
+      border: 1px solid #03a9f4;
+      border-radius: .6rem;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a { background: #03a9f4; color: #05232f; font-weight: 650; }
+    button { background: transparent; color: #cfe8f2; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Home Assistant</h1>
+    <p id="status">正在独立窗口中打开 Home Assistant…</p>
+    <p>启动页会留在小米智能存储中，因此返回和窗口导航不会再被 HA 页面替换。</p>
+    <div class="actions">
+      <button id="back" type="button">返回小米 NAS</button>
+      <a id="open" href="http://__NAS_HOST__:8123" target="_blank" rel="noopener">打开 Home Assistant</a>
+    </div>
+  </main>
+  <script>
+    const target = "http://__NAS_HOST__:8123";
+    const status = document.getElementById("status");
+
+    function openHomeAssistant() {
+      const popup = window.open(target, "homeassistant");
+      if (popup) {
+        try { popup.opener = null; } catch (_) {}
+        status.textContent = "Home Assistant 已在独立窗口打开。";
+      } else {
+        status.textContent = "客户端阻止了自动弹窗，请点击下面的打开按钮。";
+      }
+    }
+
+    document.getElementById("open").addEventListener("click", () => {
+      status.textContent = "正在打开 Home Assistant…";
+    });
+    document.getElementById("back").addEventListener("click", () => {
+      window.close();
+      if (!window.closed && history.length > 1) history.back();
+    });
+
+    window.addEventListener("load", openHomeAssistant, { once: true });
+  </script>
+</body>
+</html>
