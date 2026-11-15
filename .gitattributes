@@ -1,0 +1,3 @@
+homeassistant/xiaomi-nas-plugin/**/*.sh text eol=lf
+homeassistant/xiaomi-nas-plugin/**/*.cgi text eol=lf
+homeassistant/xiaomi-nas-plugin/**/*.py text eol=lf

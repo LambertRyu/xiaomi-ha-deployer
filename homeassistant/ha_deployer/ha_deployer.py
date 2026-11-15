@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import os
 import re
 import shlex
@@ -19,7 +20,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
 
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0-preview2"
 APP_TITLE = f"小米智能存储 · Home Assistant 一键部署 v{APP_VERSION}｜小红书：Dovahkiin"
 DEFAULT_IMAGE = "ghcr.io/home-assistant/home-assistant:2026.2.3"
 DOCKER = "/data/docker/docker"
@@ -176,6 +177,7 @@ class DeployerApp:
         self.port_var = tk.StringVar(value="22")
         self.user_var = tk.StringVar(value="root")
         self.password_var = tk.StringVar()
+        self.uid_var = tk.StringVar()
         self.image_var = tk.StringVar(value=DEFAULT_IMAGE)
         self.install_plugin_var = tk.BooleanVar(value=True)
         self.replace_container_var = tk.BooleanVar(value=False)
@@ -210,12 +212,13 @@ class DeployerApp:
         self._field(fields, 2, 0, "SSH 用户", self.user_var, 22)
         self._field(fields, 2, 2, "root 密码（可选）", self.password_var, 22, password=True)
         self._field(fields, 3, 0, "HA 镜像", self.image_var, 55)
+        self._field(fields, 4, 0, "NAS UID（可选）", self.uid_var, 22)
 
         options = ttk.LabelFrame(outer, text="部署选项", padding=12)
         options.pack(fill="x", pady=(12, 0))
         self.install_plugin_check = ttk.Checkbutton(
             options,
-            text="安装/更新小米 NAS 内的 Home Assistant 快捷入口（会自动备份原列表）",
+            text="安装/更新 Home Assistant 快捷入口及自动恢复（保留原图标与打开方式）",
             variable=self.install_plugin_var,
         )
         self.install_plugin_check.pack(anchor="w")
@@ -243,6 +246,11 @@ class DeployerApp:
         deploy_row.pack(fill="x", pady=(10, 0))
         self.deploy_button = ttk.Button(deploy_row, text="2.开始一键部署", command=self.start_deploy)
         self.deploy_button.pack(side="left")
+        self.entry_button = ttk.Button(
+            deploy_row, text="只安装/修复入口（保留 HA）",
+            command=lambda: self.start_deploy(entry_only=True),
+        )
+        self.entry_button.pack(side="left", padx=(8, 0))
 
         actions = ttk.Frame(outer)
         actions.pack(fill="x", pady=(12, 8))
@@ -355,6 +363,7 @@ class DeployerApp:
 
     def launch_worker(self, args: dict, message: str) -> None:
         self.deploy_button.configure(state="disabled")
+        self.entry_button.configure(state="disabled")
         self.discover_button.configure(state="disabled")
         self.set_status("操作进行中……")
         self.append_log("=" * 72)
@@ -494,7 +503,7 @@ class DeployerApp:
     def set_status(self, text: str) -> None:
         self.root.after(0, self.status_var.set, text)
 
-    def start_deploy(self) -> None:
+    def start_deploy(self, entry_only: bool = False) -> None:
         if self.worker and self.worker.is_alive():
             return
         host = self.host_var.get().strip()
@@ -520,7 +529,15 @@ class DeployerApp:
             "install_plugin": self.install_plugin_var.get(),
             "replace_container": self.replace_container_var.get(),
             "replace_plugin": self.replace_plugin_var.get(),
+            "entry_only": entry_only,
+            "uid": self.uid_var.get().strip(),
         }
+        if args["uid"] and not re.fullmatch(r"[0-9]{1,20}", args["uid"]):
+            messagebox.showerror("输入错误", "NAS UID 必须是纯数字，留空时自动检测。")
+            return
+        if entry_only:
+            self.launch_worker(args, "只安装/修复 NAS 入口及恢复服务，保留原 HA 容器和配置。")
+            return
         if self.uninstall_var.get():
             self.show_uninstall_dialog(args)
             return
@@ -531,10 +548,15 @@ class DeployerApp:
 
     def _worker(self, args: dict) -> None:
         success = False
+        plugin_error = None
         uninstall_mode = args.get("uninstall_mode")
         try:
             self.ssh.connect(args["host"], args["port"], args["user"], args["password"])
-            if uninstall_mode:
+            self.selected_uid = args.get("uid", "")
+            if args.get("entry_only"):
+                self.deploy_plugin(args["host"], args["replace_plugin"])
+                self.set_status("入口及自动恢复已安装；请重开 NAS 客户端验证。")
+            elif uninstall_mode:
                 self.uninstall_homeassistant(uninstall_mode)
                 self.append_log("")
                 self.append_log("HA 卸载完成。")
@@ -546,11 +568,12 @@ class DeployerApp:
                     try:
                         self.deploy_plugin(args["host"], args["replace_plugin"])
                     except Exception as exc:
+                        plugin_error = str(exc)
                         self.append_log(f"警告：HA 已部署，但 NAS 快捷入口安装失败：{exc}")
                 url = f"http://{args['host']}:8123"
                 self.append_log("")
                 self.append_log(f"部署完成：{url}")
-                self.set_status(f"完成：{url}")
+                self.set_status("HA 已部署，但入口安装失败，请查看日志。" if plugin_error else f"完成：{url}")
             success = True
         except Exception as exc:
             action = "卸载" if uninstall_mode else "部署"
@@ -559,14 +582,28 @@ class DeployerApp:
         finally:
             self.ssh.close()
             self.root.after(0, lambda: self.deploy_button.configure(state="normal"))
+            self.root.after(0, lambda: self.entry_button.configure(state="normal"))
             self.root.after(0, lambda: self.discover_button.configure(state="normal"))
             if success:
-                if uninstall_mode:
+                if plugin_error:
+                    self.root.after(0, lambda error=plugin_error: messagebox.showwarning(
+                        "HA 已部署，入口安装失败", f"{error}\n\nHA 容器保持原状，可稍后只修复入口。"))
+                elif args.get("entry_only"):
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "入口安装完成", "入口及自动恢复服务已安装。\n请完全退出并重新打开 NAS 客户端验证。"))
+                elif uninstall_mode:
                     self.root.after(0, lambda: messagebox.showinfo("卸载完成", "Home Assistant 卸载完成。"))
                 else:
                     self.root.after(0, lambda: messagebox.showinfo("部署完成", f"Home Assistant 已部署。\n\n访问地址：\nhttp://{args['host']}:8123"))
 
     def find_nas_uid(self) -> str:
+        manual_uid = getattr(self, "selected_uid", "")
+        if manual_uid:
+            if not re.fullmatch(r"[0-9]{1,20}", manual_uid):
+                raise DeployError("NAS UID 必须是纯数字。")
+            self.ssh.run(f"test -f /data/plugin/u{manual_uid}.list")
+            self.append_log(f"使用指定 NAS UID：{manual_uid}")
+            return manual_uid
         _, uid_output = self.ssh.run(
             "for f in /data/plugin/u*.list; do "
             "[ -f \"$f\" ] || continue; "
@@ -622,6 +659,12 @@ class DeployerApp:
 
     def remove_nas_plugin(self) -> None:
         uid = self.find_nas_uid()
+        recovery = "/data/homeassistant-entry-recovery/entry_recovery.py"
+        # Serialize with the watcher and persist disabled intent before removal.
+        self.ssh.run(
+            f"if test -f {recovery}; then python3 {recovery} disable --uid {uid} --apply; fi",
+            timeout=90,
+        )
         list_path = f"/data/plugin/u{uid}.list"
         stamp = f"{int(time.time())}-{os.getpid()}"
         remote_script = f"/tmp/ha-homeassistant-uninstall-{stamp}.py"
@@ -741,12 +784,14 @@ print("registration backup: " + backup)
         self.append_log("准备安装 NAS 内 Home Assistant 快捷入口……")
         uid = self.find_nas_uid()
         self.append_log(f"检测到 NAS 用户 UID：{uid}")
+        self.ssh.run("test \"$(id -u)\" = 0 && command -v python3 && command -v systemctl && test -x /usr/bin/plugin.cgi")
 
         local_root = asset_root()
         relative_files = [
             path.relative_to(local_root)
             for path in local_root.rglob("*")
-            if path.is_file() and path.name != "README.md"
+            if path.is_file() and path.name != "README.md" and "__pycache__" not in path.parts
+            and path.suffix.lower() not in {".pyc", ".pyo"}
         ]
         stamp = f"{int(time.time())}-{os.getpid()}"
         remote_root = f"/tmp/ha-homeassistant-installer-{stamp}"
@@ -765,18 +810,20 @@ print("registration backup: " + backup)
                 source = local_root / relative
                 data = source.read_bytes()
                 if source.suffix.lower() in {".html", ".json", ".sh", ".py", ".cgi", ""}:
-                    text = data.decode("utf-8")
+                    text = data.decode("utf-8").replace("\r\n", "\n")
                     text = text.replace("__NAS_HOST__", host).replace("__NAS_UID__", uid)
                     data = text.encode("utf-8")
                 remote_path = remote_root + "/" + relative.as_posix()
                 self.ssh.sftp_put(data, remote_path, sftp=sftp)
             self.append_log(f"已将 NAS 入口资源内置包上传到临时目录：{remote_root}")
-            self.ssh.run(f"sh {shlex.quote(remote_root + '/scripts/deploy.sh')} --dry-run")
             flags = "--apply"
             if replace_existing:
                 flags += " --replace"
+            dry_flags = "--dry-run" + (" --replace" if replace_existing else "")
+            self.ssh.run(f"sh {shlex.quote(remote_root + '/scripts/deploy.sh')} {dry_flags}")
             self.ssh.run(f"sh {shlex.quote(remote_root + '/scripts/deploy.sh')} {flags}", timeout=300)
-            self.append_log("NAS 内 Home Assistant 快捷入口安装完成。")
+            self.ssh.run("python3 /data/homeassistant-entry-recovery/entry_recovery.py status", timeout=60)
+            self.append_log("NAS 快捷入口及自动恢复已安装，原图标、名称和打开方式保持不变。")
         finally:
             try:
                 self.ssh.run(f"rm -rf {shlex.quote(remote_root)}", check=False)
@@ -789,6 +836,23 @@ print("registration backup: " + backup)
 
 
 def main() -> None:
+    if "--self-test" in sys.argv:
+        # Packaging smoke test: no SSH, Docker, or NAS writes.
+        resources = asset_root()
+        info = json.loads((resources / "INFO").read_text(encoding="utf-8"))
+        entry = json.loads((resources / "registration/homeassistant.entry.json").read_text(encoding="utf-8"))
+        if info != entry["homeassistant"]["info"]:
+            raise SystemExit(1)
+        if not (resources / "ui/icon.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n"):
+            raise SystemExit(1)
+        recovery = resources / "scripts/entry_recovery.py"
+        compile(recovery.read_text(encoding="utf-8"), str(recovery), "exec")
+        root = tk.Tk()
+        root.withdraw()
+        DeployerApp(root)
+        root.update_idletasks()
+        root.destroy()
+        raise SystemExit(0)
     root = tk.Tk()
     try:
         root.iconname(APP_TITLE)

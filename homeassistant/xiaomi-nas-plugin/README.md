@@ -1,8 +1,11 @@
-# Home Assistant 小米 NAS 静态入口插件
+# Home Assistant 小米 NAS 静态入口插件与入口恢复
 
 这是一个 `static-only` 插件：小米 NAS App 中显示 **Home Assistant**，点击后
-跳转到 `http://<NAS-IP>:8123`。插件不启动服务，不修改 Home Assistant
-容器、Docker、`miot_central`、Nginx 或 systemd。
+跳转到 `http://<NAS-IP>:8123`。页面和打开方式保持原版。
+v1.2.0-preview2 安装独立的 systemd 入口恢复服务，在原厂清理后补回入口；
+每分钟独立检查服务是否启动，并在 NAS 的局域网 IP 变化后自动更新入口目的地址。
+恢复程序不启动或重建 Home Assistant，不修改 Docker、`miot_central`、Nginx 或 SSH。
+范围、恢复周期和验收状态见 [入口恢复说明](../../docs/ha-entry-recovery.md)。
 
 ## 运行时配置
 
@@ -37,6 +40,7 @@ homeassistant/xiaomi-nas-plugin/
 ├── registration/homeassistant.entry.json
 ├── scripts/
 │   ├── deploy.sh
+│   ├── entry_recovery.py
 │   ├── merge_list.py
 │   └── rollback.sh
 └── ui/
@@ -68,12 +72,11 @@ sudo sh scripts/deploy.sh --apply
 
 脚本会：
 
-1. 备份 `/data/plugin/u<UID>.list` 为带时间戳的 `.bak-*` 文件；
+1. 在独立恢复目录中保存 `/data/plugin/u<UID>.list` 备份及经过校验的入口快照；
 2. 把 `INFO` 和 UI 放到 `/nas/pool0/u<UID>/plugin/pluginsrc/homeassistant`；
 3. 创建标准用户插件入口 `/home/u<UID>/plugin/homeassistant`，复制 `INFO`，
    并让 `src` 指向插件源码；插件文件归属设为 `u<UID>`，确保系统 CGI 能读取；
-4. 将旧 UI、旧符号链接和旧图标保留为带时间戳的 `.bak-*` 文件，再创建新的
-   `/data/plugin/www/u<UID>/homeassistant` UI 符号链接；
+4. 创建或恢复 `/data/plugin/www/u<UID>/homeassistant` UI 符号链接；
 5. 复制图标到 `/data/plugin/www/icon/homeassistant.icon`；
 6. 原子合并 `.list`，只新增或在显式 `--replace` 时替换 `homeassistant` 条目。
 
@@ -84,7 +87,11 @@ sudo sh scripts/deploy.sh --apply
 sudo sh scripts/deploy.sh --apply --replace
 ```
 
-脚本不会自动重启 systemd 服务，也不会触碰 Docker 或 HA。
+本测试版的 `deploy.sh` 改为调用 `scripts/entry_recovery.py`，上述目录和注册结构保留，
+备份改存于 `/data/homeassistant-entry-recovery/users/<UID>/list-backups/`（最多 10 份）。
+安装时额外建立专用恢复服务、兜底 timer 和 `/etc/cron.d/homeassistant-entry-recovery`
+独立启动检查；不会触碰 Docker 或 HA。本机当前固件的整机重启验证已通过，手机端及后续 OTA 仍待验证。
+同一用户重复安装时最多保留两代恢复快照。原有 `.bak-*` 不会被删除。
 
 ## 回滚
 
@@ -97,6 +104,7 @@ sudo sh scripts/rollback.sh \
 ```
 
 回滚脚本在覆盖前还会生成 `.rollback-*` 安全备份。
+存在入口恢复记录时，会先将其停用，避免回滚后又自动补回。
 
 ## 验证
 

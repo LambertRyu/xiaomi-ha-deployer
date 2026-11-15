@@ -5,6 +5,7 @@ $root = Split-Path -Parent $project
 $python = (Get-Command python -ErrorAction Stop).Source
 $deps = Join-Path $env:TEMP ("xiaomi-ha-deployer-deps-" + $PID)
 New-Item -ItemType Directory -Force -Path $deps | Out-Null
+$oldPythonPath = $env:PYTHONPATH
 
 try {
     & $python -m pip install --disable-pip-version-check --target $deps -r (Join-Path $project 'requirements.txt')
@@ -12,9 +13,8 @@ try {
 
 $pluginSource = Join-Path $root 'xiaomi-nas-plugin'
 $pluginData = $pluginSource + ';xiaomi-nas-plugin'
-$dist = Join-Path $project 'dist'
+$dist = Join-Path $project 'dist/v1.2.0-preview2'
 $work = Join-Path $project 'build'
-$oldPythonPath = $env:PYTHONPATH
 $env:PYTHONPATH = $deps
 
     $pyinstallerArgs = @(
@@ -29,6 +29,7 @@ $env:PYTHONPATH = $deps
         '--collect-all', 'cryptography',
         '--distpath', $dist,
         '--workpath', $work,
+        '--specpath', $work,
         (Join-Path $project 'ha_deployer.py')
     )
     & $python @pyinstallerArgs

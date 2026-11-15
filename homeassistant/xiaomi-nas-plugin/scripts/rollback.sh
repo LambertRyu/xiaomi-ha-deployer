@@ -33,6 +33,11 @@ if [ "$APPLY" -eq 0 ]; then
 fi
 
 [ "$(id -u)" -eq 0 ] || { echo "--apply must run as root" >&2; exit 1; }
+# A rollback must not be immediately undone by the recovery service.
+RECOVERY=$NAS_ROOT/data/homeassistant-entry-recovery/entry_recovery.py
+if [ -f "$RECOVERY" ]; then
+  python3 "$RECOVERY" disable --root "$NAS_ROOT" --uid "$NAS_UID" --apply
+fi
 CURRENT_BACKUP=$LIST_PATH.rollback-$(date +%Y%m%d-%H%M%S)
 cp -p "$LIST_PATH" "$CURRENT_BACKUP"
 cp -p "$BACKUP" "$LIST_PATH"

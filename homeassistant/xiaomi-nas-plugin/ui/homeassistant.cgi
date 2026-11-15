@@ -4,7 +4,12 @@
 # FILE_REQ after authenticating the request; this script never proxies HA.
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# Newer plugin.cgi launches child scripts using fexecve: $0 can be /dev/fd/3.
+# Use the same registered UI path rather than the file descriptor directory.
+ROOT=/data/plugin/www/u__NAS_UID__/homeassistant
+if [ ! -d "$ROOT" ]; then
+  ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+fi
 URI=${FILE_URI:-index.html}
 
 case "$URI" in
