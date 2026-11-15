@@ -3,7 +3,7 @@
 调研日期：2026-11-15（Asia/Shanghai）。
 
 本文件保留调研阶段的原始结论及当时范围；后续已授权实施并完成本机重启验证，最新状态见
-[入口恢复实现与验证](../ha-entry-recovery.md) 和 [preview2 更新说明](../releases/v1.2.0-preview2.md)。
+[入口恢复实现与验证](../ha-entry-recovery.md) 和 [v1.2.0 更新说明](../releases/v1.2.0.md)。
 
 ## 本轮工作约定
 

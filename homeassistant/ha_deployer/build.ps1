@@ -13,7 +13,7 @@ try {
 
 $pluginSource = Join-Path $root 'xiaomi-nas-plugin'
 $pluginData = $pluginSource + ';xiaomi-nas-plugin'
-$dist = Join-Path $project 'dist/v1.2.0-preview2'
+$dist = Join-Path $project 'dist/v1.2.0'
 $work = Join-Path $project 'build'
 $env:PYTHONPATH = $deps
 

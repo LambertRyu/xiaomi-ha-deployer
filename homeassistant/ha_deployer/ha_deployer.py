@@ -20,7 +20,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
 
 
-APP_VERSION = "1.2.0-preview2"
+APP_VERSION = "1.2.0"
 APP_TITLE = f"小米智能存储 · Home Assistant 一键部署 v{APP_VERSION}｜小红书：Dovahkiin"
 DEFAULT_IMAGE = "ghcr.io/home-assistant/home-assistant:2026.2.3"
 DOCKER = "/data/docker/docker"

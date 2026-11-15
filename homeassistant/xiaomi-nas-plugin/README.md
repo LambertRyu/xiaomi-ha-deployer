@@ -2,7 +2,7 @@
 
 这是一个 `static-only` 插件：小米 NAS App 中显示 **Home Assistant**，点击后
 跳转到 `http://<NAS-IP>:8123`。页面和打开方式保持原版。
-v1.2.0-preview2 安装独立的 systemd 入口恢复服务，在原厂清理后补回入口；
+v1.2.0 安装独立的 systemd 入口恢复服务，在原厂清理后补回入口；
 每分钟独立检查服务是否启动，并在 NAS 的局域网 IP 变化后自动更新入口目的地址。
 恢复程序不启动或重建 Home Assistant，不修改 Docker、`miot_central`、Nginx 或 SSH。
 范围、恢复周期和验收状态见 [入口恢复说明](../../docs/ha-entry-recovery.md)。
@@ -87,7 +87,7 @@ sudo sh scripts/deploy.sh --apply
 sudo sh scripts/deploy.sh --apply --replace
 ```
 
-本测试版的 `deploy.sh` 改为调用 `scripts/entry_recovery.py`，上述目录和注册结构保留，
+本版的 `deploy.sh` 改为调用 `scripts/entry_recovery.py`，上述目录和注册结构保留，
 备份改存于 `/data/homeassistant-entry-recovery/users/<UID>/list-backups/`（最多 10 份）。
 安装时额外建立专用恢复服务、兜底 timer 和 `/etc/cron.d/homeassistant-entry-recovery`
 独立启动检查；不会触碰 Docker 或 HA。本机当前固件的整机重启验证已通过，手机端及后续 OTA 仍待验证。

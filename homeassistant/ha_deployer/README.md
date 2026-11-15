@@ -1,8 +1,8 @@
-# XiaomiHAInstaller v1.2.0-preview2
+# XiaomiHAInstaller v1.2.0
 
-已发布稳定基线仍为 v1.1.0。本测试版加入入口自动恢复，详见
+当前正式版为 v1.2.0，加入入口自动恢复，详见
 [实现与验证说明](../../docs/ha-entry-recovery.md)。EXE 输出为
-`dist/v1.2.0-preview2/XiaomiHAInstaller.exe`，保留原版 EXE。
+`dist/v1.2.0/XiaomiHAInstaller.exe`，保留原版 EXE。
 
 已有 HA 时可点击“只安装/修复入口（保留 HA）”，此操作只上传入口并安装专用恢复服务。
 多用户设备可填写客户端显示的数字 NAS UID，避免自动选择到其他账号。
@@ -40,7 +40,7 @@ cd .\homeassistant\ha_deployer
 输出文件：
 
 ```text
-homeassistant\ha_deployer\dist\v1.2.0-preview2\XiaomiHAInstaller.exe
+homeassistant\ha_deployer\dist\v1.2.0\XiaomiHAInstaller.exe
 ```
 
 生成的 EXE 包含 Python 运行时、Paramiko SSH 客户端、加密库和 NAS 插件资源；用户电脑不需要安装 Python。
@@ -73,6 +73,6 @@ Windows SSH Agent 中的密钥或用户目录 `.ssh` 下的默认 OpenSSH 私钥
 
 如果入口消失，重新运行部署器并勾选“安装/更新快捷入口”即可；已有 HA 正常运行时不要
 勾选“重建容器”。
-本测试版还可点击“只安装/修复入口（保留 HA）”；安装恢复组件后会自动补回已登记的入口。
+本版还可点击“只安装/修复入口（保留 HA）”；安装恢复组件后会自动补回已登记的入口。
 
 首次连接会自动接受 SSH 主机密钥，并在日志中显示指纹。建议只在确认 NAS 地址无误的局域网环境中使用。
